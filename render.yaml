@@ -1,0 +1,23 @@
+# ================================================================
+#  Render Blueprint — AUTOFIRM VERIFICA (frontend estático)
+#  Sube este archivo a la raíz del repo y en Render usa
+#  "New +" → "Blueprint" para desplegarlo automáticamente.
+#
+#  Nota: esto SOLO despliega el frontend HTML. El backend
+#  (Edge Functions + base de datos) vive en Supabase, no aquí.
+# ================================================================
+services:
+  - type: web
+    name: autofirm-verifica
+    runtime: static
+    buildCommand: ""            # no hay build, es HTML plano
+    staticPublishPath: .        # sirve los archivos desde la raíz del repo
+    pullRequestPreviewsEnabled: false
+    routes:
+      - type: rewrite
+        source: /
+        destination: /autofirm-verifica.html
+    headers:
+      - path: /*
+        name: X-Frame-Options
+        value: DENY
