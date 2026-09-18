@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Autofirm Verifica — Historial vehicular por placa</title>
+<meta name="description" content="Consulta el historial completo de cualquier vehículo por placa: RUNT, SOAT, tecnomecánica, multas, impuestos, avalúo y antecedentes, con semáforo de riesgo." />
+<meta name="theme-color" content="#10151F" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2310151F'/%3E%3Ccircle cx='32' cy='20' r='7' fill='%23C0392B'/%3E%3Ccircle cx='32' cy='44' r='7' fill='%231E9E6A'/%3E%3C/svg%3E" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Saira:wght@500;600;700;800&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<style>
+:root{
+  --ink:#10151F; --ink-2:#1A2130; --ink-3:#262F41;
+  --paper:#F4F6F8; --surface:#FFFFFF; --line:#E3E7EC; --line-dk:rgba(255,255,255,.10);
+  --text:#10151F; --muted:#5A6577;
+  --red:#DD2B21; --red-dp:#B4241B; --red-soft:#FCE7E5;
+  --verde:#1E9E6A; --verde-soft:#E6F5EE;
+  --ambar:#C6892A; --ambar-soft:#FBF0DC;
+  --rojo:#C0392B; --rojo-soft:#FBE7E4;
+  --plate:#F2C200;
+  --radius:15px; --shadow:0 6px 20px rgba(16,21,31,.09), 0 1px 3px rgba(16,21,31,.06);
+}
+*,*::before,*::after{ box-sizing:border-box; margin:0; padding:0; }
+html{ scroll-behavior:smooth; }
+body{ font-family:'Manrope',system-ui,sans-serif; background:var(--paper); color:var(--text); line-height:1.55; -webkit-font-smoothing:antialiased; }
+button{ font:inherit; cursor:pointer; border:none; background:none; color:inherit; }
+input,select{ font:inherit; color:inherit; width:100%; }
+a{ color:inherit; text-decoration:none; }
+:focus-visible{ outline:3px solid var(--red); outline-offset:2px; border-radius:6px; }
+.mono{ font-family:'JetBrains Mono',ui-monospace,monospace; }
+.wrap{ width:100%; max-width:1120px; margin-inline:auto; padding-inline:20px; }
+.hidden{ display:none !important; }
+
+/* ---------- Header ---------- */
+.hd{ position:sticky; top:0; z-index:20; background:rgba(16,21,31,.94); backdrop-filter:blur(10px); border-bottom:1px solid var(--line-dk); color:#fff; }
+.hd-in{ display:flex; align-items:center; gap:16px; height:64px; }
+.logo{ display:flex; align-items:baseline; gap:8px; }
+.logo b{ font-family:'Saira',sans-serif; font-weight:800; font-size:21px; letter-spacing:.04em; color:#fff; }
+.logo b i{ color:var(--red); font-style:normal; }
+.logo .vf{ font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:.2em; text-transform:uppercase; color:#fff; background:var(--red); padding:2px 7px; border-radius:5px; }
+.hd .sp{ margin-left:auto; }
+.hd .lnk{ font-size:13.5px; font-weight:600; color:rgba(255,255,255,.66); }
+.hd .lnk:hover{ color:#fff; }
+.wallet{ display:inline-flex; align-items:center; gap:8px; background:rgba(255,255,255,.06); border:1px solid var(--line-dk); border-radius:10px; padding:7px 12px; font-size:13px; }
+.wallet .cr{ font-family:'JetBrains Mono',monospace; font-weight:700; color:var(--red); }
+.wallet .rc{ color:rgba(255,255,255,.6); border-left:1px solid var(--line-dk); padding-left:8px; }
+.wallet .rc:hover{ color:#fff; }
+
+/* ---------- Consulta ---------- */
+.consulta{ background:var(--ink); color:#fff; position:relative; overflow:hidden; }
+.consulta::before{ content:""; position:absolute; inset:0; background:radial-gradient(60% 80% at 82% 0%, rgba(221,43,33,.16), transparent 60%); pointer-events:none; }
+.consulta-in{ position:relative; padding:64px 0 72px; max-width:720px; }
+.eyebrow{ display:inline-flex; align-items:center; gap:8px; font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:.14em; text-transform:uppercase; color:#fff; background:rgba(255,255,255,.07); border:1px solid var(--line-dk); border-radius:999px; padding:6px 13px; margin-bottom:22px; }
+.eyebrow .d{ width:7px; height:7px; border-radius:50%; background:var(--verde); box-shadow:0 0 9px var(--verde); }
+.consulta h1{ font-family:'Saira',sans-serif; font-weight:800; font-size:clamp(2rem,5.2vw,3.2rem); line-height:1.04; letter-spacing:-.01em; margin-bottom:14px; }
+.consulta p.lead{ color:rgba(255,255,255,.72); font-size:1.06rem; max-width:52ch; margin-bottom:30px; }
+.form{ background:var(--surface); border-radius:18px; padding:18px; box-shadow:0 24px 50px rgba(0,0,0,.3); }
+.form-row{ display:grid; grid-template-columns:1.3fr .8fr 1.3fr; gap:12px; }
+.fg label{ display:block; font-family:'JetBrains Mono',monospace; font-size:9.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); margin-bottom:6px; }
+.fg input, .fg select{ background:#fafbfc; border:1px solid var(--line); border-radius:11px; padding:13px 14px; font-size:15px; font-weight:600; color:var(--text); appearance:none; -webkit-appearance:none; }
+.fg input#placa{ text-transform:uppercase; letter-spacing:.12em; font-family:'JetBrains Mono',monospace; }
+.fg input:focus, .fg select:focus{ outline:none; border-color:var(--red); box-shadow:0 0 0 3px rgba(221,43,33,.14); }
+.form-cta{ display:flex; align-items:center; gap:14px; margin-top:14px; flex-wrap:wrap; }
+.btn-go{ display:inline-flex; align-items:center; justify-content:center; gap:9px; background:var(--red); color:#fff; font-weight:700; font-size:15.5px; padding:14px 22px; border-radius:12px; transition:background .16s, transform .16s; }
+.btn-go:hover{ background:#E8382E; transform:translateY(-1px); }
+.btn-go svg{ width:18px; height:18px; }
+.cost-note{ font-size:13px; color:var(--muted); }
+.cost-note b{ color:var(--text); }
+.form-err{ color:var(--red-dp); font-size:13.5px; font-weight:600; margin-top:10px; }
+.sources{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:26px; font-size:12.5px; color:rgba(255,255,255,.55); }
+.sources .s{ font-family:'JetBrains Mono',monospace; background:rgba(255,255,255,.06); border:1px solid var(--line-dk); padding:4px 9px; border-radius:6px; letter-spacing:.03em; }
+
+/* Loading */
+.loading{ padding:80px 0; text-align:center; }
+.loading .sp{ width:40px; height:40px; border:3px solid var(--line); border-top-color:var(--red); border-radius:50%; margin:0 auto 18px; animation:spin .8s linear infinite; }
+.loading p{ color:var(--muted); font-family:'JetBrains Mono',monospace; font-size:13px; letter-spacing:.04em; }
+@keyframes spin{ to{ transform:rotate(360deg) } }
+
+/* ---------- Informe ---------- */
+.informe{ padding:28px 0 70px; }
+.report-head{ background:var(--surface); border:1px solid var(--line); border-radius:20px; padding:22px 24px; box-shadow:var(--shadow); display:grid; grid-template-columns:1fr 320px; gap:26px; margin-bottom:20px; }
+.rh-left .plate{ display:inline-block; background:var(--plate); color:#111; font-family:'JetBrains Mono',monospace; font-weight:700; font-size:19px; letter-spacing:.14em; padding:7px 14px; border-radius:8px; border:2px solid #111; margin-bottom:14px; }
+.rh-left h2{ font-family:'Saira',sans-serif; font-weight:800; font-size:1.7rem; line-height:1.08; letter-spacing:-.01em; }
+.rh-left .sub{ color:var(--muted); font-size:14.5px; margin-top:3px; }
+.rh-figs{ display:flex; gap:26px; margin-top:18px; flex-wrap:wrap; }
+.fig .n{ font-family:'Saira',sans-serif; font-weight:800; font-size:1.35rem; line-height:1; }
+.fig .n.red{ color:var(--red-dp); }
+.fig .l{ font-family:'JetBrains Mono',monospace; font-size:9.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin-top:6px; }
+
+/* Semáforo */
+.semaforo{ border-radius:16px; padding:18px; color:#fff; }
+.semaforo.verde{ background:linear-gradient(160deg,#1E9E6A,#15784f); }
+.semaforo.amarillo{ background:linear-gradient(160deg,#D99A2B,#a8701a); }
+.semaforo.rojo{ background:linear-gradient(160deg,#C0392B,#8f2318); }
+.sem-top{ display:flex; align-items:center; gap:13px; margin-bottom:12px; }
+.lights{ display:flex; gap:6px; }
+.light{ width:15px; height:15px; border-radius:50%; background:rgba(255,255,255,.28); }
+.light.on{ background:#fff; box-shadow:0 0 12px rgba(255,255,255,.8); }
+.sem-lvl{ font-family:'Saira',sans-serif; font-weight:800; font-size:1.25rem; letter-spacing:.01em; }
+.sem-verdict{ font-size:13.5px; color:rgba(255,255,255,.92); line-height:1.4; }
+
+/* Grid de secciones */
+.grid{ display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+.rcard{ background:var(--surface); border:1px solid var(--line); border-radius:15px; padding:18px 19px; box-shadow:var(--shadow); }
+.rcard.wide{ grid-column:1 / -1; }
+.rc-head{ display:flex; align-items:center; gap:10px; margin-bottom:14px; }
+.rc-head .ic{ width:32px; height:32px; border-radius:9px; background:var(--ink); color:#fff; display:grid; place-items:center; flex-shrink:0; }
+.rc-head .ic svg{ width:17px; height:17px; }
+.rc-head h3{ font-family:'Saira',sans-serif; font-weight:700; font-size:1.12rem; }
+.rc-head .badge{ margin-left:auto; font-family:'JetBrains Mono',monospace; font-size:10px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; padding:4px 9px; border-radius:6px; }
+.badge.ok{ background:var(--verde-soft); color:var(--verde); }
+.badge.warn{ background:var(--ambar-soft); color:var(--ambar); }
+.badge.bad{ background:var(--rojo-soft); color:var(--rojo); }
+.badge.info{ background:#EEF1F4; color:var(--muted); }
+.rrow{ display:flex; justify-content:space-between; align-items:baseline; gap:14px; padding:7px 0; border-bottom:1px solid #f0f2f5; }
+.rrow:last-child{ border-bottom:none; }
+.rk{ font-size:13px; color:var(--muted); flex-shrink:0; }
+.rv{ font-weight:600; font-size:13.5px; text-align:right; font-family:'JetBrains Mono',monospace; }
+.rv.big{ font-family:'Saira',sans-serif; font-weight:800; font-size:1.1rem; }
+.rv .tag{ font-family:'Manrope'; font-weight:700; font-size:11px; padding:2px 7px; border-radius:5px; }
+.tag.ok{ background:var(--verde-soft); color:var(--verde); } .tag.warn{ background:var(--ambar-soft); color:var(--ambar); } .tag.bad{ background:var(--rojo-soft); color:var(--rojo); }
+.ficha{ display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:1px; background:var(--line); border:1px solid var(--line); border-radius:11px; overflow:hidden; margin-top:4px; }
+.fc{ background:#fafbfc; padding:9px 11px; }
+.fc .v{ font-family:'JetBrains Mono',monospace; font-weight:700; font-size:13px; }
+.fc .k{ font-family:'JetBrains Mono',monospace; font-size:8.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); margin-top:3px; }
+.equip{ display:flex; flex-wrap:wrap; gap:6px; margin-top:12px; }
+.eq{ font-size:12px; font-weight:600; background:#f2f4f7; border:1px solid var(--line); border-radius:7px; padding:4px 9px; display:inline-flex; gap:5px; align-items:center; }
+.eq svg{ width:12px; height:12px; color:var(--verde); }
+.note{ font-size:12px; color:var(--muted); margin-top:10px; }
+.alerta{ display:flex; gap:10px; align-items:flex-start; background:var(--ambar-soft); border:1px solid #eed3a0; border-radius:10px; padding:11px 13px; margin-top:2px; }
+.alerta.bad{ background:var(--rojo-soft); border-color:#eeb6ad; }
+.alerta svg{ width:17px; height:17px; color:var(--ambar); flex-shrink:0; margin-top:1px; }
+.alerta.bad svg{ color:var(--rojo); }
+.alerta .t{ font-size:13px; }
+.alerta .t b{ display:block; margin-bottom:1px; }
+.empty-sec{ text-align:center; color:var(--muted); font-size:13px; padding:14px 0; }
+
+/* Foot informe */
+.report-foot{ display:flex; align-items:center; gap:14px; flex-wrap:wrap; margin-top:22px; padding-top:18px; border-top:1px solid var(--line); }
+.folio{ font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--muted); }
+.folio b{ color:var(--text); }
+.rf-actions{ margin-left:auto; display:flex; gap:10px; }
+.btn-o{ border:1px solid var(--line); background:#fff; font-weight:600; font-size:14px; padding:11px 17px; border-radius:11px; display:inline-flex; align-items:center; gap:8px; }
+.btn-o:hover{ border-color:var(--red); background:var(--red-soft); color:var(--red-dp); }
+.btn-o.dark{ background:var(--ink); color:#fff; border-color:var(--ink); }
+.btn-o.dark:hover{ background:#1c2534; color:#fff; }
+.btn-o svg{ width:16px; height:16px; }
+
+/* ---------- Planes ---------- */
+.planes{ padding:56px 0; background:var(--ink); color:#fff; }
+.planes h2{ font-family:'Saira',sans-serif; font-weight:700; font-size:1.7rem; text-align:center; }
+.planes .sub{ text-align:center; color:rgba(255,255,255,.66); margin-bottom:34px; }
+.planes-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:16px; align-items:stretch; }
+.plan{ background:rgba(255,255,255,.03); border:1px solid var(--line-dk); border-radius:16px; padding:24px; display:flex; flex-direction:column; }
+.plan.pop{ border-color:var(--red); box-shadow:0 0 0 1px var(--red); }
+.plan .tag-pop{ font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--red); margin-bottom:10px; }
+.plan h3{ font-family:'Saira',sans-serif; font-weight:700; font-size:1.3rem; }
+.plan .price{ font-family:'Saira',sans-serif; font-weight:800; font-size:2rem; margin:8px 0 2px; }
+.plan .price span{ font-size:.85rem; color:rgba(255,255,255,.5); font-weight:600; }
+.plan ul{ list-style:none; margin:16px 0 20px; display:flex; flex-direction:column; gap:9px; }
+.plan li{ font-size:14px; color:rgba(255,255,255,.82); display:flex; gap:9px; align-items:flex-start; }
+.plan li svg{ width:15px; height:15px; color:var(--red); flex-shrink:0; margin-top:3px; }
+.plan .pbtn{ margin-top:auto; width:100%; display:block; cursor:pointer; text-align:center; font-weight:700; font-size:14.5px; padding:12px; border-radius:11px; border:1px solid var(--line-dk); color:#fff; background:transparent; }
+.plan .pbtn.red{ background:var(--red); color:#fff; border-color:var(--red); }
+.wallet-strip{ text-align:center; margin-top:22px; font-size:14px; color:rgba(255,255,255,.66); }
+.wallet-strip b{ color:#fff; }
+
+/* Modal recarga */
+.overlay{ position:fixed; inset:0; z-index:60; background:rgba(11,15,23,.6); backdrop-filter:blur(4px); display:grid; place-items:center; padding:20px; }
+.overlay.hidden{ display:none; }
+.sheet{ background:#fff; border-radius:18px; max-width:420px; width:100%; padding:26px; text-align:center; box-shadow:0 30px 70px rgba(0,0,0,.35); }
+.sheet h3{ font-family:'Saira',sans-serif; font-weight:700; font-size:1.4rem; margin-bottom:6px; }
+.sheet p{ color:var(--muted); font-size:14px; margin-bottom:20px; }
+.recargas{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:18px; }
+.rec{ border:1px solid var(--line); border-radius:12px; padding:14px 8px; font-weight:700; cursor:pointer; transition:border-color .15s, background .15s; }
+.rec:hover{ border-color:var(--red); background:var(--red-soft); }
+.rec .v{ font-family:'Saira',sans-serif; font-size:1.15rem; }
+.rec .b{ font-size:11px; color:var(--verde); font-weight:700; margin-top:2px; }
+.pay-methods{ display:flex; gap:8px; justify-content:center; margin-bottom:18px; flex-wrap:wrap; }
+.pm{ font-family:'JetBrains Mono',monospace; font-size:11px; background:#f2f4f7; border:1px solid var(--line); padding:5px 10px; border-radius:7px; color:var(--muted); }
+.sheet .x{ position:absolute; }
+.sheet-close{ font-size:13.5px; color:var(--muted); text-decoration:underline; }
+
+.footer{ background:var(--ink-2); color:rgba(255,255,255,.6); padding:28px 0; text-align:center; font-size:13px; }
+.footer b{ color:#fff; font-family:'Saira'; }
+
+@media (max-width:820px){
+  .report-head{ grid-template-columns:1fr; }
+  .grid{ grid-template-columns:1fr; }
+  .planes-grid{ grid-template-columns:1fr; }
+  .form-row{ grid-template-columns:1fr 1fr; }
+  .fg.doc{ grid-column:1 / -1; }
+}
+@media (max-width:520px){
+  .form-row{ grid-template-columns:1fr; }
+  .hd .lnk{ display:none; }
+}
+@media (prefers-reduced-motion:reduce){ *{ animation:none!important; transition:none!important; } }
+@media print{
+  .hd, .consulta, .planes, .footer, .report-foot, .sources{ display:none !important; }
+  body{ background:#fff; }
+  .rcard, .report-head{ box-shadow:none; break-inside:avoid; }
+}
+</style>
+</head>
+<body>
+
+<!-- ============ HEADER ============ -->
+<header class="hd">
+  <div class="wrap hd-in">
+    <a href="#" class="logo" onclick="irConsulta();return false;" aria-label="Autofirm Verifica">
+      <b>AUTO<i>FIRM</i></b><span class="vf">Verifica</span>
+    </a>
+    <div class="sp"></div>
+    <a class="lnk" href="#planes">Planes</a>
+    <button class="lnk" id="loginBtn" onclick="abrirLogin()" hidden>Ingresar</button>
+    <div class="wallet" id="walletChip">
+      Saldo <span class="cr" id="walletCr">4</span> créditos
+      <button class="rc" onclick="abrirRecarga()">Recargar</button>
+    </div>
+    <span class="wallet" id="acctChip" hidden style="gap:10px">
+      <span class="cr" id="planChip" hidden style="color:var(--red)"></span>
+      <span class="who" id="acctEmail" style="font-size:12.5px;color:rgba(255,255,255,.7)"></span>
+      <button class="rc" onclick="logout()">Salir</button>
+    </span>
+  </div>
+</header>
+
+<!-- ============ CONSULTA ============ -->
+<section class="consulta" id="vConsulta">
+  <div class="wrap consulta-in">
+    <span class="eyebrow"><span class="d"></span> Historial vehicular en tiempo real</span>
+    <h1>Conoce todo el pasado de un carro antes de comprarlo.</h1>
+    <p class="lead">Con la placa y el documento del propietario reunimos RUNT, SOAT, tecnomecánica, multas, impuestos, avalúo y antecedentes en un solo informe, con un semáforo de riesgo que te dice si comprar o frenar.</p>
+
+    <div class="form">
+      <div class="form-row">
+        <div class="fg"><label for="placa">Placa</label><input id="placa" maxlength="7" placeholder="ABC123" autocomplete="off" /></div>
+        <div class="fg doc"><label for="docType">Tipo doc.</label><select id="docType"><option>CC</option><option>CE</option><option>NIT</option><option>PA</option><option>TI</option><option>PPT</option></select></div>
+        <div class="fg"><label for="docNumber">Documento del propietario</label><input id="docNumber" inputmode="numeric" placeholder="1020304050" autocomplete="off" /></div>
+      </div>
+      <div class="form-row" style="margin-top:12px; grid-template-columns:1fr 1fr;">
+        <div class="fg"><label for="primerApellido">Primer apellido del propietario</label><input id="primerApellido" placeholder="PÉREZ" autocomplete="off" /></div>
+        <div class="fg"><label for="ciudad">Ciudad <span style="text-transform:none;letter-spacing:0">(para impuestos y pico y placa)</span></label><input id="ciudad" placeholder="Bogotá" autocomplete="off" /></div>
+      </div>
+      <div class="form-cta">
+        <button class="btn-go" onclick="consultar()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
+          Consultar historial
+        </button>
+        <span class="cost-note">Costo: <b>$5.000</b> por consulta · 1 crédito</span>
+      </div>
+      <div class="form-err hidden" id="formErr"></div>
+    </div>
+
+    <div class="sources">
+      Fuentes:
+      <span class="s">RUNT</span><span class="s">SOAT</span><span class="s">Tecnomecánica</span>
+      <span class="s">SIMIT</span><span class="s">Fasecolda</span><span class="s">Secretarías de Hacienda</span>
+    </div>
+  </div>
+</section>
+
+<!-- ============ LOADING ============ -->
+<section class="loading hidden" id="vLoading">
+  <div class="wrap">
+    <div class="sp"></div>
+    <p id="loadMsg">Consultando fuentes oficiales…</p>
+  </div>
+</section>
+
+<!-- ============ INFORME ============ -->
+<main class="informe hidden" id="vInforme">
+  <div class="wrap" id="informeBody"></div>
+</main>
+
+<!-- ============ PLANES ============ -->
+<section class="planes" id="planes">
+  <div class="wrap">
+    <h2>Planes para cada necesidad</h2>
+    <p class="sub">Para el comprador ocasional, el vendedor frecuente o el concesionario.</p>
+    <div class="planes-grid">
+      <div class="plan">
+        <h3>Basic</h3>
+        <div class="price">$29.900<span>/mes</span></div>
+        <ul>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M20 6L9 17l-5-5"/></svg>10 consultas al mes</li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M20 6L9 17l-5-5"/></svg>Informe con semáforo de riesgo</li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M20 6L9 17l-5-5"/></svg>RUNT, SOAT, tecnomecánica, multas e impuestos</li>
+        </ul>
+        <button class="pbtn" onclick="suscribir('Basic')">Elegir Basic</button>
+      </div>
+      <div class="plan pop">
+        <div class="tag-pop">★ Más elegido</div>
+        <h3>Standard</h3>
+        <div class="price">$69.900<span>/mes</span></div>
+        <ul>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M20 6L9 17l-5-5"/></svg>30 consultas al mes</li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M20 6L9 17l-5-5"/></svg>Todo lo de Basic + siniestros y avalúo Fasecolda</li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M20 6L9 17l-5-5"/></svg>Informe PDF descargable con folio</li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M20 6L9 17l-5-5"/></svg>Monitoreo de 5 placas</li>
+        </ul>
+        <button class="pbtn red" onclick="suscribir('Standard')">Elegir Standard</button>
+      </div>
+      <div class="plan">
+        <h3>Advanced</h3>
+        <div class="price">$149.900<span>/mes</span></div>
+        <ul>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M20 6L9 17l-5-5"/></svg>100 consultas al mes</li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M20 6L9 17l-5-5"/></svg>Todo lo de Standard + antecedentes del propietario</li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M20 6L9 17l-5-5"/></svg>Monitoreo ilimitado + alertas por cambio</li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M20 6L9 17l-5-5"/></svg>Acceso API y multiusuario (concesionarios)</li>
+        </ul>
+        <button class="pbtn" onclick="suscribir('Advanced')">Elegir Advanced</button>
+      </div>
+    </div>
+    <p class="wallet-strip">¿Prefieres pagar por uso? <b>Recarga tu wallet</b> desde $20.000 y consulta a $5.000 c/u — con Nequi, PSE o tarjeta.</p>
+  </div>
+</section>
+
+<footer class="footer">
+  <div class="wrap"><b>AUTOFIRM Verifica</b> · Historial vehicular por placa · Barranquilla, Colombia</div>
+</footer>
+
+<!-- ============ MODAL LOGIN ============ -->
+<div class="overlay hidden" id="loginOv">
+  <div class="sheet">
+    <h3>Ingresar</h3>
+    <p>Accede a tu cuenta para consultar y ver tu saldo.</p>
+    <div style="text-align:left; margin-bottom:12px">
+      <input id="lgEmail" type="email" placeholder="tu@correo.com" autocomplete="username" style="background:#fafbfc;border:1px solid var(--line);border-radius:11px;padding:13px 14px;font-size:15px;margin-bottom:10px" />
+      <input id="lgPass" type="password" placeholder="Contraseña" autocomplete="current-password" style="background:#fafbfc;border:1px solid var(--line);border-radius:11px;padding:13px 14px;font-size:15px" />
+    </div>
+    <div class="form-err hidden" id="lgErr" style="text-align:left;margin-bottom:12px"></div>
+    <button class="btn-go" style="width:100%;justify-content:center" onclick="login()">Ingresar</button>
+    <button class="sheet-close" style="margin-top:14px" onclick="cerrarLogin()">Ahora no</button>
+  </div>
+</div>
+
+<div class="toast" id="toast" style="position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--ink);color:#fff;padding:13px 20px;border-radius:12px;font-weight:600;font-size:14px;box-shadow:0 12px 30px rgba(0,0,0,.3);z-index:80;opacity:0;transition:opacity .2s,transform .2s;pointer-events:none"></div>
+
+<!-- ============ MODAL SUSCRIPCIÓN (TARJETA) ============ -->
+<div class="overlay hidden" id="suscOv">
+  <div class="sheet" style="max-width:440px">
+    <h3 id="suscTitulo">Suscribirte</h3>
+    <p id="suscDetalle">—</p>
+    <div style="text-align:left; display:flex; flex-direction:column; gap:10px">
+      <input id="cardNum" inputmode="numeric" placeholder="Número de tarjeta" autocomplete="cc-number" style="background:#fafbfc;border:1px solid var(--line);border-radius:11px;padding:13px 14px;font-size:15px" />
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <input id="cardExp" placeholder="MM/AA" autocomplete="cc-exp" style="background:#fafbfc;border:1px solid var(--line);border-radius:11px;padding:13px 14px;font-size:15px" />
+        <input id="cardCvc" inputmode="numeric" placeholder="CVC" autocomplete="cc-csc" style="background:#fafbfc;border:1px solid var(--line);border-radius:11px;padding:13px 14px;font-size:15px" />
+      </div>
+      <input id="cardName" placeholder="Nombre en la tarjeta" autocomplete="cc-name" style="background:#fafbfc;border:1px solid var(--line);border-radius:11px;padding:13px 14px;font-size:15px" />
+      <label style="display:flex;gap:9px;align-items:flex-start;font-size:12.5px;color:var(--muted);text-align:left"><input type="checkbox" id="acc1" style="width:16px;height:16px;margin-top:2px;flex-shrink:0" /> Acepto el reglamento y los términos y condiciones del servicio.</label>
+      <label style="display:flex;gap:9px;align-items:flex-start;font-size:12.5px;color:var(--muted);text-align:left"><input type="checkbox" id="acc2" style="width:16px;height:16px;margin-top:2px;flex-shrink:0" /> Autorizo el tratamiento de mis datos personales y el débito automático mensual.</label>
+    </div>
+    <div class="form-err hidden" id="suscErr" style="text-align:left;margin:12px 0 0"></div>
+    <button class="btn-go" id="suscPagar" style="width:100%;justify-content:center;margin-top:16px" onclick="procesarSuscripcion()">Pagar y activar</button>
+    <div class="pay-methods" style="margin-top:14px"><span class="pm">Débito automático</span><span class="pm">Tarjeta</span><span class="pm">Wompi</span></div>
+    <button class="sheet-close" onclick="cerrarSusc()">Ahora no</button>
+  </div>
+</div>
+
+<!-- ============ MODAL RECARGA ============ -->
+<div class="overlay hidden" id="recargaOv">
+  <div class="sheet">
+    <h3>Recarga tu wallet</h3>
+    <p>Cada consulta cuesta $5.000. Recarga saldo y consulta cuando quieras.</p>
+    <div class="recargas">
+      <button class="rec" onclick="recargar(20000)"><div class="v">$20.000</div><div class="b">4 consultas</div></button>
+      <button class="rec" onclick="recargar(50000)"><div class="v">$50.000</div><div class="b">+2 bono</div></button>
+      <button class="rec" onclick="recargar(100000)"><div class="v">$100.000</div><div class="b">+5 bono</div></button>
+    </div>
+    <div class="pay-methods">
+      <span class="pm">Nequi</span><span class="pm">PSE</span><span class="pm">Tarjeta</span><span class="pm">Bancolombia</span>
+    </div>
+    <button class="sheet-close" onclick="cerrarRecarga()">Ahora no</button>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script>
+/* ================================================================
+   CONFIG + Supabase. Las llaves y datos van en config.js.
+   El proxy (Edge Function) es quien guarda la API key de PlacApi.
+   ================================================================ */
+const CONFIG = window.AUTOFIRM_CONFIG || {};
+const SB_OK = !!(CONFIG.SUPABASE_URL && !CONFIG.SUPABASE_URL.includes('TU-PROYECTO') && CONFIG.SUPABASE_ANON_KEY && !CONFIG.SUPABASE_ANON_KEY.includes('TU-LLAVE'));
+const sb = SB_OK ? window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY) : null;
+
+/* ================================================================
+   DATOS DE MUESTRA — solo para vista previa sin backend.
+   ================================================================ */
+const SAMPLE = {"sandbox":true,"input":{"placa":"ABC123","docType":"CC","docNumber":"1020304050"},"mode":"live","generatedAt":"2026-07-24T15:04:05.000Z","vehicle":{"source":"vehiculo","status":"ok","data":{"placa":"ABC123","marca":"MAZDA","linea":"CX-30","modelo":2023,"cilindraje":2000,"combustible":"GASOLINA","servicio":"Particular","carroceria":"CAMIONETA","color":"ROJO","motor":"MTR0000001","chasis":"9GAJC6915FB040270","vin":"9GAJC6915FB040270","fechaMatricula":"15/03/2023","organismoTransito":"SECRETARIA DISTRITAL DE MOVILIDAD DE BOGOTA","estado":"activo","clase":"CAMIONETA","puertas":5,"pasajerosSentados":5,"licenciaTransito":"10035451456","regrabados":[],"repotenciado":false,"importado":false}},"soat":{"status":"ok","data":{"vigente":true,"aseguradora":"SBS SEGUROS","poliza":"1508006948335000","fechaExpedicion":"20/09/2025","fechaVencimiento":"19/09/2026","diasParaVencer":69}},"rtm":{"status":"ok","data":{"vigente":true,"cda":"CDA FONTIBON S.A.S","fechaExpedicion":"22/09/2025","fechaVencimiento":"22/09/2026","diasParaVencer":72,"certificadoNumero":"189733821"}},"antecedentes":{"status":"ok","data":{"prendas":[{"acreedor":"RCI COLOMBIA S.A. COMPAÑIA DE FINANCIAMIENTO","docAcreedor":"900977629","fechaInscripcion":"2021-09-30","confecamaras":true}],"embargos":[],"historicoPropietarios":1}},"simit":{"status":"ok","data":{"totalDeuda":0,"totalMultas":0,"multas":[],"acuerdosPago":0,"pazSalvo":true,"suspendida":false,"cancelada":false,"cursos":0}},"impuestos":{"source":"Bogotá D.C.","status":"warn","data":{"departamento":"Bogotá D.C.","anios":[{"anio":2024,"valor":412000,"pagado":true},{"anio":2025,"valor":438000,"pagado":true},{"anio":2026,"valor":465000,"pagado":false}],"totalPendiente":465000},"portalUrl":"https://www.haciendabogota.gov.co/es/sdh/pagos-impuesto-vehiculos"},"fasecolda":{"status":"info","data":{"codigo":"05636023","valorComercial":109100000,"rangoMercado":{"min":109100000,"max":109100000},"clase":"CAMIONETA PASAJ.","fichaTecnica":{"cilindraje":2488,"potencia":186,"combustible":"GASOLINA","transmision":"4X4","tipoCaja":"TIPTRONICA","traccion":"DOBLE","peso":1520,"puertas":5,"capacidadPasajeros":5,"airbags":7,"abs":true,"frenos":"DISCO/DISCO","tipoDireccion":"ELÉCTRICA","tipoFaros":"LED","aireAcondicionado":true,"sunroof":true,"camaraReversa":true,"sensoresParqueo":true,"tapiceriaCuero":true,"nacionalidad":"MEX","importado":true}}},"picoYPlaca":{"status":"ok","data":[{"ciudad":"Bogotá","tipoVehiculo":"carro","hoyAplica":false,"manianaAplica":true,"digitosHoy":[1,2,3,4,5],"digitosManiana":[6,7,8,9,0],"horarios":"L–V, 6:00–21:00","vigencia":"Vigente en julio de 2026"}]},"licencia":{"data":{"documentType":"CC","documentNumber":"1020304050","fullName":"J**N P***Z","driverStatus":"ACTIVO","totalLicenses":"1","licenses":[{"category":"B1","status":"ACTIVA","expeditionDate":"23/04/2025","dueDate":"23/04/2035"}],"infractions":{"tieneMultas":"NO"}}},"cost":3};
+
+/* ================================================================
+   CAPA DE PROVEEDOR — aquí se enchufa la API real.
+   ================================================================ */
+const sleep = ms => new Promise(r=>setTimeout(r,ms));
+const PROVIDER = {
+  // Llama a NUESTRO backend (Edge Function 'consulta'), nunca a PlacApi directo.
+  // El backend guarda la API key, cobra el crédito y devuelve { informe, saldo }.
+  async consultar(params){
+    if(!sb){ // sin backend configurado: vista previa con datos de muestra
+      await sleep(950);
+      return { informe: SAMPLE, saldo: null, demo:true };
+    }
+    const { data, error } = await sb.functions.invoke('consulta', { body: params });
+    if(error){
+      let payload = null;
+      try{ payload = await error.context.json(); }catch(_){}
+      if(payload?.error === 'saldo_insuficiente'){ const e = new Error('saldo'); e.code = 'SALDO'; throw e; }
+      if(payload?.error === 'no_autenticado'){ const e = new Error('login'); e.code = 'LOGIN'; throw e; }
+      throw new Error(payload?.detalle || payload?.error || error.message);
+    }
+    return data; // { informe, saldo, source }
+  }
+};
+
+/* ================================================================
+   Utilidades
+   ================================================================ */
+const $ = s => document.querySelector(s);
+const money = n => '$ ' + Number(n||0).toLocaleString('es-CO');
+function fmtDate(s){ if(!s) return '—'; const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(s); return m? `${m[3]}/${m[2]}/${m[1]}` : s; }
+function vence(dias){ if(dias==null) return 'info'; if(dias<0) return 'bad'; if(dias<=30) return 'warn'; return 'ok'; }
+
+/* ================================================================
+   Sesión, wallet y recarga
+   ================================================================ */
+let creditos = 4;              // valor demo cuando no hay backend
+let sesion = null;
+const COSTO = 1;               // 1 crédito = $5.000
+function pintarWallet(){ const el=$('#walletCr'); if(el) el.textContent = creditos; }
+
+let toastT;
+function toast(msg){ const t=$('#toast'); if(!t) return; t.textContent=msg; t.style.opacity='1'; t.style.transform='translateX(-50%) translateY(0)'; clearTimeout(toastT); toastT=setTimeout(()=>{ t.style.opacity='0'; t.style.transform='translateX(-50%) translateY(20px)'; }, 3000); }
+
+/* --- Estado de sesión en el header --- */
+function pintarSesion(){
+  const login=$('#loginBtn'), chip=$('#walletChip'), acct=$('#acctChip');
+  if(!sb){ login.hidden=true; chip.hidden=false; acct.hidden=true; return; }      // modo demo
+  if(sesion){ login.hidden=true; chip.hidden=false; acct.hidden=false; $('#acctEmail').textContent=sesion.user.email; }
+  else { login.hidden=false; chip.hidden=true; acct.hidden=true; }
+}
+async function cargarSaldo(){
+  if(!sb || !sesion) return;
+  const { data } = await sb.from('wallets').select('creditos').maybeSingle();
+  creditos = data?.creditos ?? 0; pintarWallet();
+}
+
+/* --- Login / logout --- */
+function abrirLogin(){ $('#loginOv').classList.remove('hidden'); }
+function cerrarLogin(){ $('#loginOv').classList.add('hidden'); }
+async function login(){
+  const email=$('#lgEmail').value.trim(), password=$('#lgPass').value, err=$('#lgErr');
+  err.classList.add('hidden');
+  if(!email||!password){ err.textContent='Escribe tu correo y contraseña.'; err.classList.remove('hidden'); return; }
+  const { error } = await sb.auth.signInWithPassword({ email, password });
+  if(error){ err.textContent = error.message.includes('Invalid')?'Correo o contraseña incorrectos.':error.message; err.classList.remove('hidden'); return; }
+  cerrarLogin();
+}
+async function logout(){ await sb.auth.signOut(); }
+
+/* --- Recarga (Wompi: Nequi, PSE, tarjeta) --- */
+function abrirRecarga(){ if(sb && !sesion){ abrirLogin(); return; } $('#recargaOv').classList.remove('hidden'); }
+function cerrarRecarga(){ $('#recargaOv').classList.add('hidden'); }
+async function recargar(monto){
+  if(!sb){ // demo
+    creditos += Math.floor(monto/5000) + (monto>=100000?5:monto>=50000?2:0); pintarWallet(); cerrarRecarga(); return;
+  }
+  cerrarRecarga();
+  toast('Preparando el pago seguro…');
+  const { data, error } = await sb.functions.invoke('recarga-firma', { body:{ monto } });
+  if(error || !data?.reference){ toast('No pudimos iniciar la recarga. Intenta de nuevo.'); return; }
+  // Redirección al checkout de Wompi (ofrece Nequi, PSE, tarjeta y Bancolombia)
+  const f = document.createElement('form');
+  f.method='GET'; f.action='https://checkout.wompi.co/p/';
+  const add=(k,v)=>{ const i=document.createElement('input'); i.type='hidden'; i.name=k; i.value=String(v); f.appendChild(i); };
+  add('public-key', data.publicKey);
+  add('currency', 'COP');
+  add('amount-in-cents', data.amountInCents);
+  add('reference', data.reference);
+  add('signature:integrity', data.signature);
+  add('redirect-url', location.origin + location.pathname);
+  document.body.appendChild(f); f.submit();
+}
+
+/* ================================================================
+   Suscripciones (débito automático con Wompi)
+   ================================================================ */
+const WOMPI_API = (CONFIG.WOMPI_API_URL || 'https://production.wompi.co/v1');
+const PLANES = { Basic:{amount:29900,cred:10}, Standard:{amount:69900,cred:30}, Advanced:{amount:149900,cred:100} };
+let planSel = null;
+
+async function tokenizarTarjeta(c){
+  const r = await fetch(`${WOMPI_API}/tokens/cards`, {
+    method:'POST',
+    headers:{ Authorization:`Bearer ${CONFIG.WOMPI_PUBLIC_KEY}`, 'Content-Type':'application/json' },
+    body: JSON.stringify({ number:c.number, cvc:c.cvc, exp_month:c.exp_month, exp_year:c.exp_year, card_holder:c.card_holder })
+  });
+  const j = await r.json();
+  if(j.status !== 'CREATED' || !j?.data?.id) throw new Error(j?.error?.messages ? 'Datos de la tarjeta inválidos.' : (j?.error?.reason || 'No se pudo validar la tarjeta.'));
+  return j.data.id;
+}
+async function obtenerAcceptance(){
+  const r = await fetch(`${WOMPI_API}/merchants/${CONFIG.WOMPI_PUBLIC_KEY}`);
+  const j = await r.json();
+  return j?.data?.presigned_acceptance?.acceptance_token;
+}
+
+function suscribir(plan){
+  if(sb && !sesion){ abrirLogin(); return; }
+  if(!sb){ toast('Configura Supabase y Wompi para activar suscripciones.'); return; }
+  planSel = plan; const p = PLANES[plan];
+  $('#suscTitulo').textContent = `Suscripción ${plan}`;
+  $('#suscDetalle').textContent = `${money(p.amount)}/mes · ${p.cred} consultas mensuales · se renueva solo`;
+  $('#suscErr').classList.add('hidden');
+  $('#suscOv').classList.remove('hidden');
+}
+function cerrarSusc(){ $('#suscOv').classList.add('hidden'); }
+
+async function procesarSuscripcion(){
+  const err=$('#suscErr'); err.classList.add('hidden');
+  const number=$('#cardNum').value.replace(/\s/g,'');
+  const [mm,aa]=($('#cardExp').value||'').split('/').map(x=>(x||'').trim());
+  const cvc=$('#cardCvc').value.trim(), holder=$('#cardName').value.trim();
+  if(!number||!mm||!aa||!cvc||!holder){ err.textContent='Completa los datos de la tarjeta.'; err.classList.remove('hidden'); return; }
+  if(!$('#acc1').checked || !$('#acc2').checked){ err.textContent='Debes aceptar los términos y la autorización de datos.'; err.classList.remove('hidden'); return; }
+  const btn=$('#suscPagar'); btn.textContent='Procesando…'; btn.disabled=true;
+  try{
+    const token = await tokenizarTarjeta({ number, cvc, exp_month:mm, exp_year:aa, card_holder:holder });
+    const acceptanceToken = await obtenerAcceptance();
+    const { data, error } = await sb.functions.invoke('suscribir', { body:{ plan:planSel, token, acceptanceToken } });
+    if(error){ let pl=null; try{ pl=await error.context.json(); }catch(_){}; throw new Error(pl?.detalle || pl?.error || error.message); }
+    cerrarSusc(); toast('Estamos activando tu suscripción…');
+    let tries=0; const iv=setInterval(async()=>{ await cargarSaldo(); await cargarSuscripcion(); if(++tries>=6){ clearInterval(iv); } }, 2500);
+  }catch(e){ err.textContent = e.message || 'No se pudo procesar el pago.'; err.classList.remove('hidden'); }
+  finally{ btn.textContent='Pagar y activar'; btn.disabled=false; }
+}
+
+async function cargarSuscripcion(){
+  if(!sb || !sesion) return;
+  const { data } = await sb.from('suscripciones').select('plan,estado').eq('estado','activa').order('created_at',{ascending:false}).limit(1).maybeSingle();
+  const chip=$('#planChip');
+  if(chip){ if(data){ chip.textContent = 'Plan '+data.plan; chip.hidden=false; } else { chip.hidden=true; } }
+}
+
+/* ================================================================
+   Motor de riesgo — calcula el semáforo desde el informe
+   ================================================================ */
+function calcularRiesgo(r){
+  const flags = [];
+  const push = (nivel, texto) => flags.push({nivel, texto});
+  const v = r.vehicle?.data||{}, a = r.antecedentes?.data||{}, s = r.simit?.data||{};
+  const imp = r.impuestos?.data||{}, soat = r.soat?.data||{}, rtm = r.rtm?.data||{};
+
+  if((a.embargos||[]).length) push('rojo', `Embargo(s) vigente(s): ${a.embargos.length}`);
+  if(v.estado && v.estado.toLowerCase()!=='activo') push('rojo', `Estado del registro: ${v.estado}`);
+  if((v.regrabados||[]).length) push('rojo', 'Regrabación de seriales detectada');
+  if((r.siniestros||[]).some(x=>/total/i.test(x.protection||''))) push('rojo', 'Pérdida total registrada en siniestros');
+
+  if((a.prendas||[]).length) push('amarillo', `Prenda vigente ante ${a.prendas[0].acreedor.split(' ').slice(0,3).join(' ')}…`);
+  if(imp.totalPendiente>0) push('amarillo', `Impuesto pendiente: ${money(imp.totalPendiente)}`);
+  if((s.totalDeuda||0)>0) push('amarillo', `Multas SIMIT: ${money(s.totalDeuda)}`);
+  if(soat.vigente===false) push('rojo', 'SOAT vencido');
+  else if(soat.diasParaVencer!=null && soat.diasParaVencer<=30) push('amarillo', `SOAT vence en ${soat.diasParaVencer} días`);
+  if(rtm.vigente===false) push('rojo', 'Tecnomecánica vencida');
+  else if(rtm.diasParaVencer!=null && rtm.diasParaVencer<=30) push('amarillo', `Tecnomecánica vence en ${rtm.diasParaVencer} días`);
+  if((a.historicoPropietarios||0)>=4) push('amarillo', `${a.historicoPropietarios} propietarios (alta rotación)`);
+
+  // positivos
+  if(!(a.embargos||[]).length && !(a.prendas||[]).length) push('verde', 'Sin gravámenes ni embargos');
+  if(s.pazSalvo) push('verde', 'Paz y salvo de multas (SIMIT)');
+  if(soat.vigente && (soat.diasParaVencer>30)) push('verde', 'SOAT vigente');
+  if(rtm.vigente && (rtm.diasParaVencer>30)) push('verde', 'Tecnomecánica vigente');
+  if((a.historicoPropietarios||0)>0 && a.historicoPropietarios<4) push('verde', `${a.historicoPropietarios} único propietario`.replace('1 único','Un único'));
+
+  const nivel = flags.some(f=>f.nivel==='rojo') ? 'rojo' : flags.some(f=>f.nivel==='amarillo') ? 'amarillo' : 'verde';
+  const verdict = {
+    verde:'Sin alertas relevantes. El vehículo está al día y libre de gravámenes; puedes avanzar con confianza.',
+    amarillo:'Requiere atención. Hay pendientes o condiciones que debes verificar y negociar antes de cerrar el negocio.',
+    rojo:'Alto riesgo. Se detectaron condiciones graves; recomendamos no comprar hasta aclararlas por completo.'
+  }[nivel];
+  return {nivel, verdict, flags};
+}
+
+/* ================================================================
+   Render del informe
+   ================================================================ */
+const check = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>`;
+const warnIco = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>`;
+function row(k,v){ return `<div class="rrow"><span class="rk">${k}</span><span class="rv">${v??'—'}</span></div>`; }
+function icoBox(path){ return `<span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${path}</svg></span>`; }
+function badge(estado){ const map={ok:'Al día',warn:'Atención',bad:'Vencido',info:'Informativo'}; return `<span class="badge ${estado}">${map[estado]||estado}</span>`; }
+
+function renderInforme(r){
+  const v=r.vehicle.data, a=r.antecedentes.data, s=r.simit.data, imp=r.impuestos.data, soat=r.soat.data, rtm=r.rtm.data, fc=r.fasecolda.data, lic=r.licencia?.data;
+  const riesgo = calcularRiesgo(r);
+  const deudaTotal = (imp.totalPendiente||0) + (s.totalDeuda||0);
+  const folio = 'AFV-' + (v.placa||'') + '-' + Date.now().toString(36).toUpperCase().slice(-6);
+  const lights = ['rojo','amarillo','verde'].map(n=>`<span class="light ${n===riesgo.nivel?'on':''}"></span>`).join('');
+  const lvlTxt = {verde:'RIESGO BAJO',amarillo:'RIESGO MEDIO',rojo:'RIESGO ALTO'}[riesgo.nivel];
+
+  const flagsHTML = riesgo.flags.map(f=>{
+    const c = f.nivel==='verde'?'ok':f.nivel==='amarillo'?'warn':'bad';
+    const ico = f.nivel==='verde'?check:warnIco;
+    return `<div class="alerta ${c==='bad'?'bad':''}" style="margin-bottom:6px;${f.nivel==='verde'?'background:var(--verde-soft);border-color:#bfe6d3;':''}">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:${f.nivel==='verde'?'var(--verde)':f.nivel==='amarillo'?'var(--ambar)':'var(--rojo)'}">${f.nivel==='verde'?'<path d="M20 6L9 17l-5-5"/>':'<path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/>'}</svg>
+      <div class="t">${f.texto}</div></div>`;
+  }).join('');
+
+  // Ficha técnica Fasecolda
+  const ft = fc.fichaTecnica||{};
+  const fichaCampos = [['Potencia',ft.potencia?ft.potencia+' hp':'—'],['Cilindraje',ft.cilindraje?ft.cilindraje+' cc':'—'],['Transmisión',ft.transmision],['Caja',ft.tipoCaja],['Tracción',ft.traccion],['Airbags',ft.airbags],['Frenos',ft.frenos],['Dirección',ft.tipoDireccion],['Faros',ft.tipoFaros],['Peso',ft.peso?ft.peso+' kg':'—']];
+  const equip = [];
+  if(ft.abs) equip.push('ABS'); if(ft.aireAcondicionado) equip.push('Aire acondicionado'); if(ft.sunroof) equip.push('Techo corredizo'); if(ft.camaraReversa) equip.push('Cámara de reversa'); if(ft.sensoresParqueo) equip.push('Sensores de parqueo'); if(ft.tapiceriaCuero) equip.push('Tapicería en cuero');
+
+  // Impuestos por año
+  const impRows = (imp.anios||[]).map(x=>row(`Año ${x.anio}`, `${money(x.valor)} <span class="tag ${x.pagado?'ok':'bad'}">${x.pagado?'Pagado':'Pendiente'}</span>`)).join('');
+  // Pico y placa
+  const pp = (r.picoYPlaca?.data||[])[0]||{};
+  // Siniestros
+  const sinArr = r.siniestros;
+
+  $('#informeBody').innerHTML = `
+  <div class="report-head">
+    <div class="rh-left">
+      <span class="plate">${(v.placa||'').replace(/(.{3})(.*)/,'$1·$2')}</span>
+      <h2>${v.marca} ${v.linea} ${v.modelo}</h2>
+      <div class="sub">${v.servicio} · ${v.combustible} · ${v.color} · ${v.carroceria}</div>
+      <div class="rh-figs">
+        <div class="fig"><div class="n">${money(fc.valorComercial)}</div><div class="l">Avalúo Fasecolda</div></div>
+        <div class="fig"><div class="n ${deudaTotal>0?'red':''}">${money(deudaTotal)}</div><div class="l">Deuda pendiente</div></div>
+        <div class="fig"><div class="n">${a.historicoPropietarios}</div><div class="l">Propietarios</div></div>
+      </div>
+    </div>
+    <div class="semaforo ${riesgo.nivel}">
+      <div class="sem-top"><div class="lights">${lights}</div><div class="sem-lvl">${lvlTxt}</div></div>
+      <div class="sem-verdict">${riesgo.verdict}</div>
+    </div>
+  </div>
+
+  <div class="grid">
+    <!-- Señales -->
+    <div class="rcard wide">
+      <div class="rc-head">${icoBox('<path d="M12 2 2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>')}<h3>Señales detectadas</h3></div>
+      ${flagsHTML}
+    </div>
+
+    <!-- Identificación -->
+    <div class="rcard wide">
+      <div class="rc-head">${icoBox('<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 15h.01M11 15h6"/>')}<h3>Identificación del vehículo (RUNT)</h3>${badge(v.estado?.toLowerCase()==='activo'?'ok':'bad')}</div>
+      <div class="ficha">
+        ${[['Marca',v.marca],['Línea',v.linea],['Modelo',v.modelo],['Cilindraje',v.cilindraje+' cc'],['Combustible',v.combustible],['Servicio',v.servicio],['Carrocería',v.carroceria],['Color',v.color],['Motor',v.motor],['Chasis',v.chasis],['VIN',v.vin],['Matrícula',fmtDate(v.fechaMatricula)],['Puertas',v.puertas],['Lic. tránsito',v.licenciaTransito]].map(([k,val])=>`<div class="fc"><div class="v">${val??'—'}</div><div class="k">${k}</div></div>`).join('')}
+      </div>
+      <div class="note">Organismo de tránsito: ${v.organismoTransito}</div>
+    </div>
+
+    <!-- Situación legal -->
+    <div class="rcard">
+      <div class="rc-head">${icoBox('<path d="M12 3 4 7v5c0 4 3 7 8 9 5-2 8-5 8-9V7l-8-4z"/>')}<h3>Situación legal</h3>${badge((a.prendas||[]).length||(a.embargos||[]).length?'warn':'ok')}</div>
+      ${(a.prendas||[]).length? `<div class="alerta"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${warnIco.match(/<path.*\/>/)[0]}</svg><div class="t"><b>Prenda vigente</b>${a.prendas[0].acreedor} · desde ${fmtDate(a.prendas[0].fechaInscripcion)}</div></div>` : `<div class="alerta" style="background:var(--verde-soft);border-color:#bfe6d3"><svg viewBox="0 0 24 24" fill="none" stroke="var(--verde)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><div class="t">Sin prendas registradas</div></div>`}
+      ${row('Embargos', (a.embargos||[]).length? `<span class="tag bad">${a.embargos.length}</span>` : `<span class="tag ok">Ninguno</span>`)}
+      ${row('Propietarios registrados', a.historicoPropietarios)}
+    </div>
+
+    <!-- Multas -->
+    <div class="rcard">
+      <div class="rc-head">${icoBox('<circle cx="12" cy="12" r="9"/><path d="M12 8v4l2.5 2.5"/>')}<h3>Multas (SIMIT)</h3>${badge(s.totalDeuda>0?'bad':'ok')}</div>
+      ${row('Deuda total', `<b>${money(s.totalDeuda)}</b>`)}
+      ${row('Comparendos', s.totalMultas)}
+      ${row('Acuerdos de pago', s.acuerdosPago)}
+      ${row('Estado', s.pazSalvo? '<span class="tag ok">Paz y salvo</span>' : '<span class="tag bad">Con deuda</span>')}
+    </div>
+
+    <!-- SOAT -->
+    <div class="rcard">
+      <div class="rc-head">${icoBox('<path d="M12 3 4 7v5c0 4 3 7 8 9 5-2 8-5 8-9V7l-8-4z"/><path d="M9 12l2 2 4-4"/>')}<h3>SOAT</h3>${badge(soat.vigente?vence(soat.diasParaVencer):'bad')}</div>
+      ${row('Estado', soat.vigente? `<span class="tag ok">Vigente</span>`:`<span class="tag bad">Vencido</span>`)}
+      ${row('Aseguradora', soat.aseguradora)}
+      ${row('Vence', `${fmtDate(soat.fechaVencimiento)} <span class="tag ${vence(soat.diasParaVencer)}">${soat.diasParaVencer} días</span>`)}
+      ${row('Póliza', soat.poliza)}
+    </div>
+
+    <!-- RTM -->
+    <div class="rcard">
+      <div class="rc-head">${icoBox('<path d="M14.7 6.3a5 5 0 0 0-6.4 6.4L3 18l3 3 5.3-5.3a5 5 0 0 0 6.4-6.4l-2.8 2.8-2.3-2.3 2.8-2.8z"/>')}<h3>Tecnomecánica</h3>${badge(rtm.vigente?vence(rtm.diasParaVencer):'bad')}</div>
+      ${row('Estado', rtm.vigente? `<span class="tag ok">Vigente</span>`:`<span class="tag bad">Vencida</span>`)}
+      ${row('CDA', rtm.cda)}
+      ${row('Vence', `${fmtDate(rtm.fechaVencimiento)} <span class="tag ${vence(rtm.diasParaVencer)}">${rtm.diasParaVencer} días</span>`)}
+      ${row('Certificado', rtm.certificadoNumero)}
+    </div>
+
+    <!-- Impuestos -->
+    <div class="rcard">
+      <div class="rc-head">${icoBox('<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M8 9h8M8 13h5"/>')}<h3>Impuestos</h3>${badge(imp.totalPendiente>0?'warn':'ok')}</div>
+      ${impRows}
+      ${row('Total pendiente', `<b>${money(imp.totalPendiente)}</b>`)}
+      <div class="note">${imp.departamento}</div>
+    </div>
+
+    <!-- Siniestros -->
+    <div class="rcard">
+      <div class="rc-head">${icoBox('<path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/>')}<h3>Siniestros (Fasecolda)</h3>${badge(sinArr?(sinArr.length?'warn':'ok'):'info')}</div>
+      ${sinArr ? (sinArr.length? sinArr.map(x=>row(fmtDate(x.accidentDate), x.protection)).join('') : `<div class="empty-sec">Sin siniestros con reclamación registrados</div>`) : `<div class="empty-sec">Módulo de siniestros no incluido en esta consulta.<br>Disponible desde el plan Standard.</div>`}
+    </div>
+
+    <!-- Ficha técnica -->
+    <div class="rcard wide">
+      <div class="rc-head">${icoBox('<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/>')}<h3>Avalúo y ficha técnica (Fasecolda)</h3></div>
+      ${row('Valor comercial', `<span class="rv big">${money(fc.valorComercial)}</span>`)}
+      ${row('Código Fasecolda', fc.codigo)}
+      <div class="ficha" style="margin-top:12px">
+        ${fichaCampos.map(([k,val])=>`<div class="fc"><div class="v">${val??'—'}</div><div class="k">${k}</div></div>`).join('')}
+      </div>
+      ${equip.length? `<div class="equip">${equip.map(e=>`<span class="eq">${check}${e}</span>`).join('')}</div>`:''}
+      <div class="note">${fc.importado?'Vehículo importado':''} ${fc.nacionalidad?('· Origen '+fc.nacionalidad):''}</div>
+    </div>
+
+    <!-- Pico y placa -->
+    <div class="rcard">
+      <div class="rc-head">${icoBox('<rect x="3" y="6" width="18" height="12" rx="2"/><path d="M7 10h4"/>')}<h3>Pico y placa · ${pp.ciudad||'—'}</h3></div>
+      ${row('Hoy', pp.hoyAplica? `<span class="tag bad">Aplica restricción</span>`:`<span class="tag ok">Libre</span>`)}
+      ${row('Mañana', pp.manianaAplica? `<span class="tag warn">Restringido</span>`:`<span class="tag ok">Libre</span>`)}
+      ${row('Horario', pp.horarios)}
+      <div class="note">${pp.vigencia||''}</div>
+    </div>
+
+    <!-- Propietario / Licencia -->
+    <div class="rcard">
+      <div class="rc-head">${icoBox('<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>')}<h3>Propietario y licencia</h3>${badge(lic?.driverStatus==='ACTIVO'?'ok':'info')}</div>
+      ${lic? `
+        ${row('Titular', lic.fullName)}
+        ${row('Documento', `${lic.documentType} ${lic.documentNumber}`)}
+        ${row('Estado licencia', lic.driverStatus)}
+        ${row('Categoría', (lic.licenses||[]).map(l=>l.category).join(', '))}
+        ${row('Vence licencia', fmtDate((lic.licenses||[])[0]?.dueDate))}
+        ${row('Multas conductor', lic.infractions?.tieneMultas==='NO'? '<span class="tag ok">No</span>':'<span class="tag warn">Sí</span>')}
+      ` : `<div class="empty-sec">No disponible</div>`}
+    </div>
+  </div>
+
+  <div class="report-foot">
+    <span class="folio">Folio <b>${folio}</b> · Generado ${new Date().toLocaleString('es-CO')} · Fuentes oficiales</span>
+    <div class="rf-actions">
+      <button class="btn-o" onclick="window.print()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v8H6z"/></svg>
+        Descargar PDF
+      </button>
+      <button class="btn-o dark" onclick="irConsulta()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
+        Nueva consulta
+      </button>
+    </div>
+  </div>`;
+}
+
+/* ================================================================
+   Flujo de consulta
+   ================================================================ */
+function mostrar(vista){ ['vConsulta','vLoading','vInforme'].forEach(id=>$('#'+id).classList.toggle('hidden', id!==vista)); }
+function irConsulta(){ mostrar('vConsulta'); window.scrollTo({top:0,behavior:'smooth'}); }
+
+async function consultar(){
+  const placa = $('#placa').value.trim().toUpperCase();
+  const docType = $('#docType').value;
+  const docNumber = $('#docNumber').value.trim();
+  const primerApellido = $('#primerApellido').value.trim().toUpperCase();
+  const ciudad = $('#ciudad').value.trim();
+  const err = $('#formErr'); err.classList.add('hidden');
+
+  if(placa.length<5){ err.textContent='Escribe una placa válida (ej. ABC123).'; err.classList.remove('hidden'); return; }
+  if(docNumber.length<5){ err.textContent='Escribe el documento del propietario. El RUNT lo exige para entregar la ficha.'; err.classList.remove('hidden'); return; }
+
+  // Requiere sesión cuando hay backend; en demo el saldo es local.
+  if(sb && !sesion){ abrirLogin(); return; }
+  if(!sb && creditos < COSTO){ abrirRecarga(); return; }
+
+  mostrar('vLoading');
+  const msgs = ['Consultando el RUNT…','Verificando SOAT y tecnomecánica…','Revisando multas e impuestos…','Consultando Fasecolda y antecedentes…','Calculando semáforo de riesgo…'];
+  let i=0; const t=setInterval(()=>{ $('#loadMsg').textContent = msgs[i++%msgs.length]; }, 380);
+
+  try{
+    const res = await PROVIDER.consultar({ placa, docType, docNumber, primerApellido, ciudad });
+    // saldo: lo define el servidor; en demo se descuenta localmente.
+    if(res.saldo != null){ creditos = res.saldo; } else { creditos -= COSTO; }
+    pintarWallet();
+    renderInforme(res.informe);
+    clearInterval(t);
+    mostrar('vInforme');
+    window.scrollTo({top:0,behavior:'smooth'});
+  }catch(e){
+    clearInterval(t);
+    mostrar('vConsulta');
+    if(e.code === 'SALDO'){ abrirRecarga(); }
+    else if(e.code === 'LOGIN'){ err.textContent='Inicia sesión para consultar. (El panel de acceso se conecta con la misma cuenta de Supabase.)'; err.classList.remove('hidden'); }
+    else { err.textContent='No pudimos completar la consulta: '+(e.message||'error')+'. Intenta de nuevo.'; err.classList.remove('hidden'); }
+    console.error(e);
+  }
+}
+
+$('#placa').addEventListener('keydown', e=>{ if(e.key==='Enter') $('#docNumber').focus(); });
+$('#ciudad').addEventListener('keydown', e=>{ if(e.key==='Enter') consultar(); });
+$('#lgPass')?.addEventListener('keydown', e=>{ if(e.key==='Enter') login(); });
+
+/* --- Arranque --- */
+async function init(){
+  pintarSesion(); pintarWallet();
+  if(sb){
+    const { data:{ session } } = await sb.auth.getSession();
+    sesion = session; pintarSesion(); await cargarSaldo(); await cargarSuscripcion();
+    sb.auth.onAuthStateChange(async (_e, s)=>{ sesion = s; pintarSesion(); if(s){ await cargarSaldo(); await cargarSuscripcion(); } });
+
+    // ¿Volvió del checkout de Wompi? Confirmar y refrescar saldo.
+    const params = new URLSearchParams(location.search);
+    if(params.get('id')){
+      toast('Confirmando tu pago…');
+      let tries=0; const iv=setInterval(async ()=>{ await cargarSaldo(); if(++tries>=5){ clearInterval(iv); toast('Saldo actualizado.'); } }, 2500);
+      history.replaceState({}, '', location.pathname);
+    }
+  }
+}
+init();
+</script>
+</body>
+</html>
