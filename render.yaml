@@ -9,9 +9,9 @@
 services:
   - type: web
     name: vehitrack
-    runtime: static
-    buildCommand: ""            # no hay build, es HTML plano
-    staticPublishPath: .        # sirve index.html y los demás archivos desde la raíz
+    env: static
+    buildCommand: "echo 'sin build, es HTML estatico'"
+    staticPublishPath: ./
     pullRequestPreviewsEnabled: false
     headers:
       - path: /*

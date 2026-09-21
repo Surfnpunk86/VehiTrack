@@ -101,19 +101,16 @@ Este archivo sí va en el repo/hosting (son llaves públicas), pero **nunca** po
 
 ## 6. Desplegar el frontend en Render
 
-Opción rápida (Blueprint, usa el `render.yaml` ya incluido):
+**Recomendado — manual, sin `render.yaml` (100% confiable):**
 
-1. Sube estos cambios (index.html, config.js, logo.png, render.yaml, supabase/functions) a tu repo de GitHub.
-2. En Render: **New + → Blueprint** → conecta el repo `Surfnpunk86/VehiTrack`.
-3. Render detecta `render.yaml` y crea un **Static Site** automáticamente.
-4. Espera el deploy; la URL pública quedará como `https://vehitrack.onrender.com`.
+1. En Render: **New + → Static Site** → conecta el repo `Surfnpunk86/VehiTrack`.
+2. **Build Command**: déjalo vacío.
+3. **Publish Directory**: `.` (un solo punto, la raíz del repo).
+4. Deploy. La URL pública quedará como `https://vehitrack.onrender.com`.
 
-Opción manual (sin Blueprint):
+Si ya tienes un servicio creado con el Blueprint y te dio el error `bash: line 1: .: filename argument required`, ese servicio quedó mal configurado (interpretó el Blueprint como si fuera un servicio con comandos de shell). Bórralo y créalo de nuevo con los 4 pasos de arriba — es la forma más segura.
 
-1. **New + → Static Site** → conecta el repo.
-2. Build command: (vacío)
-3. Publish directory: `.` (raíz del repo)
-4. Deploy.
+**Alternativa — Blueprint con `render.yaml`:** ya corregido en este paquete (usaba `runtime: static`, que Render no reconoce; ahora usa `env: static`). Si prefieres esta vía: sube `render.yaml` al repo, luego **New + → Blueprint** → conecta el repo, y Render debería crear el Static Site solo. Si vuelve a fallar, usa la opción manual de arriba, que no depende de este archivo.
 
 ## 7. Probar
 
