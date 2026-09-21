@@ -1,5 +1,5 @@
 # ================================================================
-#  Render Blueprint — AUTOFIRM VERIFICA (frontend estático)
+#  Render Blueprint — VEHITRACK (frontend estático)
 #  Sube este archivo a la raíz del repo y en Render usa
 #  "New +" → "Blueprint" para desplegarlo automáticamente.
 #
@@ -8,15 +8,11 @@
 # ================================================================
 services:
   - type: web
-    name: autofirm-verifica
+    name: vehitrack
     runtime: static
     buildCommand: ""            # no hay build, es HTML plano
-    staticPublishPath: .        # sirve los archivos desde la raíz del repo
+    staticPublishPath: .        # sirve index.html y los demás archivos desde la raíz
     pullRequestPreviewsEnabled: false
-    routes:
-      - type: rewrite
-        source: /
-        destination: /autofirm-verifica.html
     headers:
       - path: /*
         name: X-Frame-Options

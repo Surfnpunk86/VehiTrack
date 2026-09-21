@@ -1,123 +1,117 @@
 // ================================================================
-//  AUTOFIRM VERIFICA · Edge Function "consulta"
+//  VEHITRACK · Edge Function "wompi-webhook"
 //  ----------------------------------------------------------------
-//  El frontend llama a esta función (sb.functions.invoke('consulta'))
-//  en vez de llamar a PlacApi directo, para que la API key de PlacApi
-//  nunca quede expuesta en el navegador.
+//  Recibe el evento "transaction.updated" de Wompi y acredita:
+//   - Recargas de wallet    (referencia AFV-...)
+//   - Cobros de suscripción (referencia SUB-...): activa/renueva o
+//     marca la suscripción como morosa.
+//  Valida el checksum del evento con el "Events Secret" de Wompi
+//  antes de confiar en el payload (así nadie puede simular un pago
+//  aprobado llamando directo a esta URL).
 //
-//  Flujo:
-//   1) Verifica que el usuario esté autenticado (JWT del header).
-//   2) Revisa caché reciente en `consultas` para esa placa (opcional,
-//      evita cobrar dos veces la misma placa en poco tiempo).
-//   3) Cobra 1 crédito de forma atómica con consumir_credito().
-//   4) Llama a PlacApi con la API key guardada como secreto.
-//   5) Si PlacApi falla, reintegra el crédito con reintegrar_credito().
-//   6) Guarda el informe en `consultas` y responde { informe, saldo }.
-//
-//  ⚠️ IMPORTANTE — AJUSTA ANTES DE USAR EN PRODUCCIÓN:
-//  No tengo acceso a la documentación real de PlacApi (endpoints,
-//  nombres de parámetros, forma exacta de la respuesta), así que la
-//  función de abajo (`consultarPlacApi`) es una plantilla razonable,
-//  no una integración verificada. Antes de desplegar:
-//   - Confirma la URL base y el endpoint real de PlacApi.
-//   - Confirma cómo se autentica (header, query param, etc).
-//   - Ajusta el mapeo de la respuesta al shape que espera el frontend
-//     (mismo shape que `SAMPLE` en autofirm-verifica.html: vehicle,
-//     soat, rtm, antecedentes, simit, impuestos, fasecolda,
-//     picoYPlaca, licencia).
+//  Checksum de eventos de Wompi:
+//    sha256hex( valores_de_signature.properties_en_orden + timestamp + eventsSecret )
+//  donde cada "propiedad" se lee del payload siguiendo su ruta
+//  (ej. "data.transaction.id" → body.data.transaction.id).
 //
 //  Variables de entorno requeridas (Supabase → Edge Functions → Secrets):
-//    SUPABASE_URL               (ya la inyecta Supabase automáticamente)
-//    SUPABASE_SERVICE_ROLE_KEY  (ya la inyecta Supabase automáticamente)
-//    PLACAPI_BASE_URL           ej: https://api.placapi.com/v1
-//    PLACAPI_API_KEY            tu llave privada de PlacApi
+//    SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY  (las inyecta Supabase)
+//    WOMPI_EVENTS_SECRET   (Wompi → Configuración → Llaves → Events secret)
 //
-//  Desplegar:  supabase functions deploy consulta
+//  Desplegar:  supabase functions deploy wompi-webhook --no-verify-jwt
 // ================================================================
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const json = (o: unknown, s = 200) =>
   new Response(JSON.stringify(o), { status: s, headers: { "content-type": "application/json" } });
 
-const COSTO_CREDITOS = 1;
-const CACHE_MINUTOS = 0; // súbelo (ej. 60) si quieres servir caché reciente sin cobrar de nuevo
+function sumarUnMes(fecha: string) {
+  const d = new Date(fecha + "T00:00:00Z");
+  const hoy = new Date();
+  const base = d > hoy ? d : hoy; // no acumular meses vencidos
+  base.setUTCMonth(base.getUTCMonth() + 1);
+  return base.toISOString().slice(0, 10);
+}
 
-async function consultarPlacApi(placa: string, docType?: string, docNumber?: string) {
-  const base = Deno.env.get("PLACAPI_BASE_URL");
-  const apiKey = Deno.env.get("PLACAPI_API_KEY");
-  if (!base || !apiKey) {
-    throw new Error("PlacApi no está configurado (faltan PLACAPI_BASE_URL / PLACAPI_API_KEY)");
-  }
+function leerRuta(obj: any, ruta: string) {
+  return ruta.split(".").reduce((acc, k) => (acc == null ? undefined : acc[k]), obj);
+}
 
-  // TODO: reemplaza esta llamada por el endpoint real de PlacApi.
-  const r = await fetch(`${base}/vehiculos/${encodeURIComponent(placa)}`, {
-    headers: { Authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
-  });
-  if (!r.ok) throw new Error(`PlacApi respondió ${r.status}`);
-  const data = await r.json();
+async function sha256hex(str: string) {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
+  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
 
-  // TODO: mapea `data` (respuesta real de PlacApi) al shape que el
-  // frontend espera. Por ahora se devuelve tal cual llega.
-  return data;
+async function checksumValido(body: any, eventsSecret: string) {
+  const props: string[] = body?.signature?.properties;
+  const checksumRecibido: string = body?.signature?.checksum;
+  if (!props || !checksumRecibido) return false;
+  const concatenado = props.map((p) => String(leerRuta(body, p))).join("") + String(body.timestamp) + eventsSecret;
+  const calculado = await sha256hex(concatenado);
+  return calculado.toUpperCase() === String(checksumRecibido).toUpperCase();
 }
 
 Deno.serve(async (req) => {
   if (req.method !== "POST") return json({ error: "metodo_no_permitido" }, 405);
-
   try {
-    const authHeader = req.headers.get("Authorization") ?? "";
-    const anon = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY") ?? Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-      { global: { headers: { Authorization: authHeader } } },
-    );
-    const { data: userData, error: userErr } = await anon.auth.getUser();
-    if (userErr || !userData?.user) return json({ error: "no_autenticado" }, 401);
-    const userId = userData.user.id;
+    const body = await req.json();
 
-    const body = await req.json().catch(() => ({}));
-    const placa: string = (body?.placa ?? "").toString().trim().toUpperCase();
-    const docType: string | undefined = body?.docType;
-    const docNumber: string | undefined = body?.docNumber;
-    if (!placa) return json({ error: "placa_requerida" }, 400);
+    const eventsSecret = Deno.env.get("WOMPI_EVENTS_SECRET");
+    if (!eventsSecret) {
+      console.warn("WOMPI_EVENTS_SECRET no configurado: el checksum del evento NO se está validando.");
+    } else if (!(await checksumValido(body, eventsSecret))) {
+      return json({ error: "checksum_invalido" }, 401);
+    }
+
+    const tx = body?.data?.transaction;
+    if (!tx?.reference || !tx?.status) return json({ error: "payload_incompleto" }, 400);
+
+    const ref: string = tx.reference;
+    const estado: string = tx.status; // APPROVED | DECLINED | VOIDED | ERROR | PENDING
+    const txnId: string = tx.id;
+    const aprobado = estado === "APPROVED";
+    const fallido = estado === "DECLINED" || estado === "VOIDED" || estado === "ERROR";
 
     const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
-    // Caché opcional: evita cobrar de nuevo si ya se consultó hace poco.
-    if (CACHE_MINUTOS > 0) {
-      const desde = new Date(Date.now() - CACHE_MINUTOS * 60_000).toISOString();
-      const { data: cache } = await admin.from("consultas")
-        .select("payload").eq("placa", placa).gte("created_at", desde)
-        .order("created_at", { ascending: false }).limit(1).maybeSingle();
-      if (cache) {
-        const { data: wallet } = await admin.from("wallets").select("creditos").eq("user_id", userId).maybeSingle();
-        return json({ informe: cache.payload, saldo: wallet?.creditos ?? 0, source: "cache" });
+    if (ref.startsWith("SUB-")) {
+      // ── Cobro de suscripción ──
+      if (aprobado) {
+        const { data: cobro } = await admin.from("cobros")
+          .update({ estado: "aprobado", wompi_txn_id: txnId, updated_at: new Date().toISOString() })
+          .eq("reference", ref).eq("estado", "pendiente")
+          .select("user_id, creditos, suscripcion_id").maybeSingle();
+        if (cobro) {
+          await admin.rpc("sumar_creditos", { p_user: cobro.user_id, p_creditos: cobro.creditos });
+          const { data: sub } = await admin.from("suscripciones").select("proximo_cobro").eq("id", cobro.suscripcion_id).maybeSingle();
+          await admin.from("suscripciones").update({
+            estado: "activa", retry_count: 0,
+            proximo_cobro: sumarUnMes(sub?.proximo_cobro ?? new Date().toISOString().slice(0, 10)),
+            updated_at: new Date().toISOString(),
+          }).eq("id", cobro.suscripcion_id);
+        }
+      } else if (fallido) {
+        const { data: cobro } = await admin.from("cobros")
+          .update({ estado: "rechazado", wompi_txn_id: txnId, updated_at: new Date().toISOString() })
+          .eq("reference", ref).eq("estado", "pendiente")
+          .select("suscripcion_id").maybeSingle();
+        if (cobro) await admin.rpc("marcar_morosa", { p_sub: cobro.suscripcion_id });
+      }
+    } else {
+      // ── Recarga de wallet ──
+      if (aprobado) {
+        const { data: rec } = await admin.from("recargas")
+          .update({ estado: "aprobada", wompi_txn_id: txnId, updated_at: new Date().toISOString() })
+          .eq("reference", ref).eq("estado", "pendiente")
+          .select("user_id, creditos").maybeSingle();
+        if (rec) await admin.rpc("sumar_creditos", { p_user: rec.user_id, p_creditos: rec.creditos });
+      } else if (fallido) {
+        await admin.from("recargas").update({ estado: "rechazada", wompi_txn_id: txnId, updated_at: new Date().toISOString() })
+          .eq("reference", ref).eq("estado", "pendiente");
       }
     }
 
-    // Cobro atómico de crédito
-    const { data: restante, error: rpcErr } = await admin.rpc("consumir_credito", {
-      p_user: userId, p_costo: COSTO_CREDITOS,
-    });
-    if (rpcErr) return json({ error: "error_interno", detalle: rpcErr.message }, 500);
-    if (restante === -1) return json({ error: "saldo_insuficiente" }, 402);
-
-    // Llamada al proveedor real
-    let informe;
-    try {
-      informe = await consultarPlacApi(placa, docType, docNumber);
-    } catch (e) {
-      await admin.rpc("reintegrar_credito", { p_user: userId, p_costo: COSTO_CREDITOS });
-      return json({ error: "proveedor_no_disponible", detalle: String(e) }, 502);
-    }
-
-    // Guardar en historial/caché
-    await admin.from("consultas").insert({
-      user_id: userId, placa, doc_type: docType, doc_number: docNumber,
-      payload: informe, source: "placapi", costo: COSTO_CREDITOS,
-    });
-
-    return json({ informe, saldo: restante, source: "placapi" });
+    return json({ ok: true });
   } catch (e) {
     return json({ error: "error_interno", detalle: String(e) }, 500);
   }

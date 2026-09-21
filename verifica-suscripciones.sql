@@ -1,5 +1,5 @@
 -- ================================================================
---  AUTOFIRM VERIFICA · SUSCRIPCIONES (débito automático con Wompi)
+--  VEHITRACK · SUSCRIPCIONES (débito automático con Wompi)
 --  Ejecutar después de verifica-backend.sql y verifica-pagos.sql
 --
 --  CORRECCIONES sobre el archivo original:

@@ -1,18 +1,18 @@
 /* ================================================================
-   AUTOFIRM VERIFICA · config.js
+   VEHITRACK · config.js
    ----------------------------------------------------------------
    Este archivo NO debe llevar llaves secretas. Solo va la URL de
    tu proyecto de Supabase, la llave ANON (pública, protegida por
    RLS) y la llave PÚBLICA de Wompi (también diseñada para exponerse
    en el navegador). Las llaves secretas (service_role, Wompi Events
-   Secret, Wompi Private Key, API key de PlacApi) van SOLO como
-   variables de entorno de las Edge Functions en Supabase — nunca
-   aquí ni en ningún archivo que subas a Git/Render.
+   Secret, Wompi Private Key) van SOLO como variables de entorno de
+   las Edge Functions en Supabase — nunca aquí ni en ningún archivo
+   que subas a Git/Render.
 
    Reemplaza los 4 valores de abajo y sube este archivo junto al
    HTML (mismo folder) al hosting estático (Render Static Site).
    ================================================================ */
-window.AUTOFIRM_CONFIG = {
+window.VEHITRACK_CONFIG = {
   // Panel de Supabase → Project Settings → API → Project URL
   SUPABASE_URL: "https://TU-PROYECTO.supabase.co",
 

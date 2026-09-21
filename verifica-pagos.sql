@@ -1,5 +1,5 @@
 -- ================================================================
---  AUTOFIRM VERIFICA · PAGOS (recargas de wallet con Wompi)
+--  VEHITRACK · PAGOS (recargas de wallet con Wompi)
 --  Ejecutar después de verifica-backend.sql
 -- ================================================================
 

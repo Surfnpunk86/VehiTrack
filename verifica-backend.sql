@@ -1,5 +1,5 @@
 -- ================================================================
---  AUTOFIRM VERIFICA · BASE DE DATOS Y SEGURIDAD
+--  VEHITRACK · BASE DE DATOS Y SEGURIDAD
 --  Ejecutar una vez en Supabase → SQL Editor → Run.
 -- ================================================================
 
